@@ -132,7 +132,7 @@ comp = comp.dropna(subset=['at'])
 # Create a CRSP Subsample with Monthly Stock and Event Variables
 # Restrictions will be applied later
 # Select variables from the CRSP monthly stock and event datasets
-crsp_m = conn.raw_sql("""
+crsp = conn.raw_sql("""
                       select a.prc, a.ret, a.retx, a.shrout, a.vol, a.cfacpr, a.cfacshr, a.date, a.permno, a.permco,
                       b.ticker, b.ncusip, b.shrcd, b.exchcd
                       from crsp.msf as a
@@ -145,29 +145,29 @@ crsp_m = conn.raw_sql("""
                       """)
 
 # change variable format to int
-crsp_m[['permco', 'permno', 'shrcd', 'exchcd']] = crsp_m[['permco', 'permno', 'shrcd', 'exchcd']].astype(int)
+crsp[['permco', 'permno', 'shrcd', 'exchcd']] = crsp[['permco', 'permno', 'shrcd', 'exchcd']].astype(int)
 
 # Line up date to be end of month
-crsp_m['date'] = pd.to_datetime(crsp_m['date'])
-crsp_m['monthend'] = crsp_m['date'] + MonthEnd(0)  # set all the date to the standard end date of month
+crsp['date'] = pd.to_datetime(crsp['date'])
+crsp['monthend'] = crsp['date'] + MonthEnd(0)  # set all the date to the standard end date of month
 
 # calculate market equity
-crsp_m['me'] = crsp_m['prc'].abs() * crsp_m['shrout']  
+crsp['me'] = crsp['prc'].abs() * crsp['shrout']  
 
 # if Market Equity is Nan then let return equals to 0
-crsp_m['ret'] = np.where(crsp_m['me'].isnull(), 0, crsp_m['ret'])
-crsp_m['retx'] = np.where(crsp_m['me'].isnull(), 0, crsp_m['retx'])
+crsp['ret'] = np.where(crsp['me'].isnull(), 0, crsp['ret'])
+crsp['retx'] = np.where(crsp['me'].isnull(), 0, crsp['retx'])
 
 # impute me
-crsp_m = crsp_m.sort_values(by=['permno', 'date']).drop_duplicates()
-crsp_m['me'] = np.where(crsp_m['permno'] == crsp_m['permno'].shift(1), crsp_m['me'].fillna(method='ffill'), crsp_m['me'])
+crsp = crsp.sort_values(by=['permno', 'date']).drop_duplicates()
+crsp['me'] = np.where(crsp['permno'] == crsp['permno'].shift(1), crsp['me'].fillna(method='ffill'), crsp['me'])
 
 # sum of me across different permno belonging to same permco a given date
-crsp_summe = crsp_m.groupby(['monthend', 'permco'])['me'].sum().reset_index()
+crsp_summe = crsp.groupby(['monthend', 'permco'])['me'].sum().reset_index()
 # largest mktcap within a permco/date
-crsp_maxme = crsp_m.groupby(['monthend', 'permco'])['me'].max().reset_index()
+crsp_maxme = crsp.groupby(['monthend', 'permco'])['me'].max().reset_index()
 # join by monthend/maxme to find the permno
-crsp1 = pd.merge(crsp_m, crsp_maxme, how='inner', on=['monthend', 'permco', 'me'])
+crsp1 = pd.merge(crsp, crsp_maxme, how='inner', on=['monthend', 'permco', 'me'])
 # drop me column and replace with the sum me
 crsp1 = crsp1.drop(['me'], axis=1)
 # join with sum of me to get the correct market cap info
@@ -588,10 +588,6 @@ data_rawa = data_rawa.drop(['herf'], axis=1)
 data_rawa = pd.merge(data_rawa, df_temp, how='left', on=['datadate', 'ffi49'])
 
 ################################## Added on 2020.10.29 ##################################
-# bm
-#data_rawa['bm'] = data_rawa['be'] / data_rawa['me']
-#data_rawa['bm_n'] = data_rawa['be']
-
 # Bmj
 data_rawa['be_per'] = data_rawa['be'] / data_rawa['csho']
 data_rawa['bmj'] = data_rawa['be_per'] / data_rawa['prc'] 
@@ -1473,7 +1469,7 @@ data_rawq = data_rawq[((data_rawq['exchcd'] == 1) | (data_rawq['exchcd'] == 2) |
 
 # bm
 data_rawa['bm'] = data_rawa['be'] / data_rawa['me']
-data_rawa['bm_n'] = data_rawa['be']
+#data_rawa['bm_n'] = data_rawa['be']
 
 # bm_ia
 df_temp = data_rawa.groupby(['datadate', 'ffi49'], as_index=False)['bm'].mean()
@@ -1496,7 +1492,7 @@ data_rawa['cfp'] = np.select(condlist, choicelist, default=(data_rawa['ib']+data
 
 # ep, checked from Hou and change 'ME' from compustat to crsp，checked
 data_rawa['ep'] = data_rawa['ib']/data_rawa['me']
-data_rawa['ep_n'] = data_rawa['ib']
+#data_rawa['ep_n'] = data_rawa['ib']
 
 # rsup
 # data_rawa['sale_l1'] = data_rawa.groupby(['permno'])['sale'].shift(1)
@@ -1507,7 +1503,7 @@ data_rawa['lev'] = data_rawa['lt']/data_rawa['me']
 
 # sp, checked
 data_rawa['sp'] = data_rawa['sale']/data_rawa['me']
-data_rawa['sp_n'] = data_rawa['sale']
+#data_rawa['sp_n'] = data_rawa['sale']
 
 # rdm
 data_rawa['rdm'] = data_rawa['xrd']/data_rawa['me']
@@ -1583,7 +1579,7 @@ data_rawq['cfp'] = np.where(data_rawq['dpq'].isnull(),
 # ep, also checked and change 'ME' from compustat to crsp
 #data_rawq['ep'] = data_rawq['ibq4']/data_rawq['me']
 data_rawq['ep'] = ttm4('ibq', data_rawq)/data_rawq['me']
-data_rawq['ep_n'] = data_rawq['ep']*data_rawq['me']
+#data_rawq['ep_n'] = data_rawq['ep']*data_rawq['me']
 
 # lev
 data_rawq['lev'] = data_rawq['ltq']/data_rawq['me']
