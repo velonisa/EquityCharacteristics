@@ -1308,8 +1308,6 @@ crsp_mom['permno'] = crsp_mom['permno'].astype(int)
 crsp_mom['date'] = pd.to_datetime(crsp_mom['date'])
 crsp_mom['jdate'] = pd.to_datetime(crsp_mom['date']) + MonthEnd(0)
 crsp_mom = crsp_mom.dropna()
-# populate the chars to monthly
-crsp_mom['jdate'] = crsp_mom['date'] + MonthEnd(0)
 
 # add delisting return
 dlret = conn.raw_sql("""
