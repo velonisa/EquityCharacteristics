@@ -40,13 +40,13 @@ def ttm12(series, df):
     """
     lag = pd.DataFrame()
     for i in range(1, 12):
-        lag['%(series)s%(lag)s' % {'series': series, 'lag': i}] = df.groupby('gvkey')['%s' % series].shift(i)
+        lag['%(series)s%(lag)s' % {'series': series, 'lag': i}] = df.groupby('permno')['%s' % series].shift(i)
     result = df['%s' % series] + lag['%s1' % series] + lag['%s2' % series] + lag['%s3' % series] +\
              lag['%s4' % series] + lag['%s5' % series] + lag['%s6' % series] + lag['%s7' % series] +\
              lag['%s8' % series] + lag['%s9' % series] + lag['%s10' % series] + lag['%s11' % series]
     return result
 
-
+print('TTM')
 #######################################################################################################################
 #                                                  Compustat Block                                                    #
 #######################################################################################################################
@@ -67,7 +67,7 @@ comp = conn.raw_sql("""
                     
                     /*liabilities*/
                     f.lct, f.dlc, f.dltt, f.lt, f.dm, f.dcvt, f.cshrc, 
-                    f.dcpstk, f.pstk, f.ap, f.lco, f.lo, f.drc, f.drlt, f.txdi, f.dltis, f.dltr. f.dlcch,
+                    f.dcpstk, f.pstk, f.ap, f.lco, f.lo, f.drc, f.drlt, f.txdi, f.dltis, f.dltr, f.dlcch,
                     
                     /*equity and other*/
                     f.ceq, f.scstkc, f.emp, f.csho, f.seq, f.txditc, f.pstkrv, f.pstkl, f.np, f.txdc, 
@@ -122,7 +122,7 @@ comp['xsga0'] = np.where(comp['xsga'].isnull, 0, 0)
 comp['ceq'] = np.where(comp['ceq'] == 0, np.nan, comp['ceq'])
 comp['at'] = np.where(comp['at'] == 0, np.nan, comp['at'])
 comp = comp.dropna(subset=['at'])
-
+print('compustat')
 #######################################################################################################################
 #                                                       CRSP Block                                                    #
 #######################################################################################################################
@@ -177,7 +177,7 @@ crsp1 = crsp1.drop(['me'], axis=1)
 crsp2 = pd.merge(crsp1, crsp_summe, how='inner', on=['monthend', 'permco'])
 # sort by permno and date and also drop duplicates
 crsp2 = crsp2.sort_values(by=['permno', 'monthend']).drop_duplicates()
-
+print('crsp')
 #######################################################################################################################
 #                                                        CCM Block                                                    #
 #######################################################################################################################
@@ -237,7 +237,7 @@ data_rawa.loc[data_rawa.groupby(['permno', 'yearend', 'datadate'], as_index=Fals
 data_rawa = data_rawa[data_rawa['temp'].notna()]
 
 data_rawa = data_rawa.sort_values(by=['permno', 'jdate'])
-
+print('ccm')
 #######################################################################################################################
 #                                                  Annual Variables                                                   #
 #######################################################################################################################
@@ -774,7 +774,7 @@ data_rawa['cto'] = data_rawa['sale'] / data_rawa['at'].shift(1)
 
 #ir
 '''
-First calculate r(t-5,t). Then rb(t-5,t) and use Bm to perform linear regression and get residue
+#First calculate r(t-5,t). Then rb(t-5,t) and use Bm to perform linear regression and get residue
 '''
 #r(t-5,t):sum ret from t-5 to t (which is calendar year t-6 to t-1)
 lag = pd.DataFrame()
@@ -784,30 +784,30 @@ for i in range(1,6):
 data_rawa['ret5'] = lag['ret1']+lag['ret2']+lag['ret3']+lag['ret4']+lag['ret5']
 
 #bm_t-5 (bm of year t-5)
-data_rawa['bm5'] = data_rawa.groupby(['permno'])['bm'].shift(5)
+#data_rawa['bm5'] = data_rawa.groupby(['permno'])['bm'].shift(5)
 
 #rB (five year log book return)
 #Reference: jf_06 page8 by KENT DANIEL
-data_rawa['rB'] = data_rawa['bm'] - data_rawa['bm5'] + data_rawa['ret5']
+#data_rawa['rB'] = data_rawa['bm'] - data_rawa['bm5'] + data_rawa['ret5']
 
 #Regression and get ir
 #First get unique datelist
-datelist = data_rawa['jdate'].unique()
-for date in datelist:
-    temp = data_rawa['jdate' == date]
-    n_row = temp.shape[0]
-    index = temp.index
-    X = pd.DataFrame()
-    X['bm5'] = temp['bm5']
-    X['rB'] = temp['rB']
-    X['intercept'] = 1
-    X = X[['intercept','rB','bm5']]
-    X = np.mat(X)
-    Y = np.mat(temp[['ret5']])
+#datelist = data_rawa['jdate'].unique()
+#for date in datelist:
+#    temp = data_rawa['jdate' == date]
+#    n_row = temp.shape[0]
+#    index = temp.index
+#    X = pd.DataFrame()
+#    X['bm5'] = temp['bm5']
+#    X['rB'] = temp['rB']
+#    X['intercept'] = 1
+#    X = X[['intercept','rB','bm5']]
+#    X = np.mat(X)
+#    Y = np.mat(temp[['ret5']])
     #These are residuals on one date
-    res = (np.identity(n_row) - X.dot(X.T.dot(X).I).dot(X.T)).dot(Y)
-    #put residuals back into data_rawa
-    data_rawa.loc[index,'ir'] = res
+#    res = (np.identity(n_row) - X.dot(X.T.dot(X).I).dot(X.T)).dot(Y)
+#    #put residuals back into data_rawa
+#    data_rawa.loc[index,'ir'] = res
 
 #nop
 #data_rawa['net_p'] = data_rawa['dvc'] + data_rawa['prstkc'] + 2*data_rawa['pstkrv'] - data_rawa['sstk']
@@ -867,7 +867,7 @@ data_rawa['txtpi_l3'] = data_rawa.groupby('permno')['txtpi'].shift(3)
 data_rawa['deps'] = data_rawa['epspx']/(data_rawa['ajex'] * data_rawa['prcc_f'])
 data_rawa['etr'] = (data_rawa['txtpi'] - (data_rawa['txtpi_l1'] + data_rawa['txtpi_l2'] + data_rawa['txtpi_l3'])/3) * data_rawa['deps']
 
-
+print('annual')
 #######################################################################################################################
 #                                              Compustat Quarterly Raw Info                                           #
 #######################################################################################################################
@@ -952,7 +952,7 @@ data_rawq.loc[data_rawq.groupby(['permno', 'yearend', 'datadate'], as_index=Fals
 data_rawq = data_rawq[data_rawq['temp'].notna()]
 
 data_rawq = data_rawq.sort_values(by=['permno', 'jdate'])
-
+print('quarterly raw')
 #######################################################################################################################
 #                                                   Quarterly Variables                                               #
 #######################################################################################################################
@@ -1291,10 +1291,12 @@ data_rawq['mveqa_1'] = data_rawq.groupby(['permno'])['mveqa'].shift(1)
 data_rawq['almq'] = data_rawq['qal']/data_rawq['mveqa_1']
 
 #Olq, needs atq
-data_rawa['olq'] = (data_rawa['cogsq'] + data_rawa['xsgaq'])/data_rawa['atq']
+data_rawq['olq'] = (data_rawq['cogsq'] + data_rawq['xsgaq'])/data_rawq['atq']
 
 # rds
 data_rawq['rds'] = data_rawq['xrdq4']/data_rawq['saleq']
+
+print('quarterly variables')
 #######################################################################################################################
 #                                                       Momentum                                                      #
 #######################################################################################################################
@@ -1326,12 +1328,12 @@ crsp_mom['ret'] = crsp_mom['ret'].fillna(0)
 crsp_mom['retadj'] = (1 + crsp_mom['ret']) * (1 + crsp_mom['dlret']) - 1
 crsp_mom['me'] = crsp_mom['prc'].abs() * crsp_mom['shrout']  # calculate market equity
 crsp_mom['retx'] = np.where(crsp_mom['me'].isnull(), 0, crsp_mom['retx'])
-crsp_mom = crsp_mom.drop(['dlret', 'dlstdt', 'prc', 'shrout'], axis=1)
+crsp_mom = crsp_mom.drop(['dlret', 'dlstdt'], axis=1)#delete prc,shrout
 
 #Seasonality
 
 #Rla
-crsp_mom['rla'] = crsp_mom.groupby['permno']['ret'].shift(12)
+crsp_mom['rla'] = crsp_mom.groupby(['permno'])['ret'].shift(12)
 
 #Rln
 lag = pd.DataFrame()
@@ -1439,7 +1441,7 @@ crsp_mom['dy'] = ttm12(series='mdivpay', df=crsp_mom)/crsp_mom['me']
 # crsp_mom['moms12m'] = moms(1, 12, crsp_mom)
 
 # populate the chars to monthly
-
+print('momentum')
 # data_rawa
 data_rawa = data_rawa.drop(['date', 'ret', 'retx', 'me'], axis=1)
 data_rawa = pd.merge(crsp_mom, data_rawa, how='left', on=['permno', 'jdate'])
@@ -1447,7 +1449,7 @@ data_rawa['datadate'] = data_rawa.groupby(['permno'])['datadate'].fillna(method=
 data_rawa = data_rawa.groupby(['permno', 'datadate'], as_index=False).fillna(method='ffill')
 data_rawa = data_rawa[((data_rawa['exchcd'] == 1) | (data_rawa['exchcd'] == 2) | (data_rawa['exchcd'] == 3)) &
                       ((data_rawa['shrcd'] == 10) | (data_rawa['shrcd'] == 11))]
-
+print('data_rawa')
 # data_rawq
 data_rawq = data_rawq.drop(['date', 'ret', 'retx', 'me'], axis=1)
 data_rawq = pd.merge(crsp_mom, data_rawq, how='left', on=['permno', 'jdate'])
@@ -1455,7 +1457,7 @@ data_rawq['datadate'] = data_rawq.groupby(['permno'])['datadate'].fillna(method=
 data_rawq = data_rawq.groupby(['permno', 'datadate'], as_index=False).fillna(method='ffill')
 data_rawq = data_rawq[((data_rawq['exchcd'] == 1) | (data_rawq['exchcd'] == 2) | (data_rawq['exchcd'] == 3)) &
                       ((data_rawq['shrcd'] == 10) | (data_rawq['shrcd'] == 11))]
-
+print('data_rawq')
 #######################################################################################################################
 #                                                    Monthly ME                                                       #
 #######################################################################################################################
@@ -1544,6 +1546,32 @@ data_rawa['ocy'] = np.where(data_rawa['jdate'] < '1988-06-30', data_rawa['fopt']
 data_rawa['ocp'] = data_rawa['ocy'] / data_rawa['me']
 data_rawa['ocp'] = np.where(data_rawa['ocp']<=0, np.nan, data_rawa['ocp'] )
 
+#bm_t-5 (bm of year t-5)
+data_rawa['bm5'] = data_rawa.groupby(['permno'])['bm'].shift(5)
+
+#rB (five year log book return)
+#Reference: jf_06 page8 by KENT DANIEL
+data_rawa['rB'] = data_rawa['bm'] - data_rawa['bm5'] + data_rawa['ret5']
+
+#Regression and get ir
+#First get unique datelist
+datelist = data_rawa['jdate'].unique()
+for date in datelist:
+    temp = data_rawa[data_rawa['jdate'] == date]
+    n_row = temp.shape[0]
+    index = temp.index
+    X = pd.DataFrame()
+    X['bm5'] = temp['bm5']
+    X['rB'] = temp['rB']
+    X['intercept'] = 1
+    X = X[['intercept','rB','bm5']]
+    X = np.mat(X)
+    Y = np.mat(temp[['ret5']])
+    #These are residuals on one date
+    res = (np.identity(n_row) - X.dot(X.T.dot(X).I).dot(X.T)).dot(Y)
+    #put residuals back into data_rawa
+    data_rawa.loc[index,'ir'] = res
+
 # Annual Accounting Variables
 chars_a = data_rawa[['cusip', 'ncusip', 'gvkey', 'permno', 'exchcd', 'shrcd', 'datadate', 'jdate',
                      'sic', 'retadj', 'acc', 'agr', 'bm', 'cfp', 'ep', 'ni', 'op', 'rsup', 'cash', 'chcsho',
@@ -1557,8 +1585,10 @@ chars_a = data_rawa[['cusip', 'ncusip', 'gvkey', 'permno', 'exchcd', 'shrcd', 'd
                      'me_ia', 'bmj','cp', 'ebp', 'em', 'dp', 'aci', 'dpia', 'dBe', 'dfnl', 'dfin', 'dcoa',
                      'dlno', 'dnoa', 'cla', 'cop', 'cto', 'dIi', 'dnco', 'dnca', 'ir', 'nop', 'ocp',
                      'ia', 'ig','2ig','ivc','ndf','nsi','oa','poa','ta','ol','etr']]
-chars_a.reset_index(drop=True, inplace=True)
 
+chars_a.reset_index(drop=True, inplace=True)
+print(chars_a)
+print('ME annual')
 ########################################
 #               Quarterly              #
 ########################################
@@ -1600,10 +1630,14 @@ chars_q = data_rawq[['gvkey', 'permno', 'datadate', 'jdate', 'sic', 'exchcd', 's
                      'grltnoa', 'ala', 'alm', 'rsup', 'stdacc', 'sgrvol', 'roavol', 'scf', 'cinvest',
                      'mom1m', 'mom6m', 'mom12m', 'mom60m', 'mom36m', 'seas1a', 'me', 'pscore', 'nincr',
                      'turn', 'dolvol', 'iaq', 'almq', 'olq', 'rds']]
-chars_q.reset_index(drop=True, inplace=True)
 
+chars_q.reset_index(drop=True, inplace=True)
+print(chars_q)
+print('ME quarterly')
 with open('chars_a_60.pkl', 'wb') as f:
     pkl.dump(chars_a, f)
-
+print('pkl a')
 with open('chars_q_60.pkl', 'wb') as f:
     pkl.dump(chars_q, f)
+print('pkl q')
+print('Finished')
